@@ -30,29 +30,77 @@ GRID6 |    |    |    |    |    |    |    |    |    |     |     |
 GRID7 |    |    |    |    |    |    |    |    |    |     |     |
 */
 
-#include "TM16xx.h"
 #include "tm1624_font.h"
 
-#define TM1624_MAX_POS 7
-
-class TM1624 : public TM16xx
+template <typename T, typename U>
+auto min(T x, U y) -> decltype(x>y ? x : y)
 {
+  return x<y ? x : y;
+}
+
+
+#define TM1624_CMD_DATA_AUTO 0x40
+#define TM1624_CMD_DATA_FIXED 0x44
+#define TM1624_CMD_DISPLAY 0x80
+#define TM1624_CMD_ADDRESS 0xC0
+#define TM1624_MAX_POS 7
+#define TM1624_MAX_SEGMENTS 11
+
+typedef enum
+{
+    LIGHT1,
+    LIGHT2,
+    LIGHT3,
+    LIGHT4,
+    LIGHT5,
+    LIGHT6,
+    LIGHT7,
+    LIGHT8,
+} light_intensity_t;
+
+typedef bool bit_t;
+
+class TM1624
+{
+
+protected:
+    uint16_t width, height;
+    byte blocks;
+    byte count_per_block;
+    byte max_displays;
+    byte max_segments;
+
 private:
-    uint16_t _data[TM1624_MAX_POS];
+    uint32_t _dataPin;
+    uint32_t _clockPin;
+    uint32_t *_strobePins; // from left to right and from top to bottom.
+
+    light_intensity_t _intensity;
+    bit_t _activateDisplay;
+
+    void _init();
+    void _delay();
+    void _start(byte block);
+    void _stop(byte block);
+    void _send(byte data);
+    void _sendCommand(byte block, byte cmd);
+    void _sendData(byte block, byte address, byte data);
 
 public:
-    TM1624(byte dataPin, byte clockPin, byte strobePin, byte numDigits = TM1624_MAX_POS, bool activateDisplay = true, byte intensity = 7);
+    TM1624(uint32_t dataPin, uint32_t clockPin,
+           uint32_t *strobePins, byte strobeCols = 1,
+           byte strobeRows = 1);
+
+    uint16_t getHeight() { return this->height; }
+    uint16_t getWidth() { return this->width; }
+    byte getMaxSegment() { return this->max_segments; }
+    byte getMaxDisplay() { return this->max_displays; }
+    byte getBlocks() { return this->blocks; }
 
     /** Set the segments at a specific position on or off */
-    void clearDisplay();
-    void setSegments(byte segments, byte position);
-    void setSegments16(uint16_t segments, byte position);
-    void setDisplay();
-    void setPixel(byte nCol, byte nRow);
-    void clearPixel(byte nCol, byte nRow);
-    bool getPixel(byte nCol, byte nRow);
-    void sendNumber(byte x, byte y, uint8_t num);
-    void sendDot(byte x, byte y);
+    void setupDisplay(bit_t activity, byte intensity, byte block = 0xff);
+    void setSegments(uint16_t segment, byte block, byte position);
+    void reverseBitOrder(uint16_t *segment);
 };
 
-#endif // !_TM1624_H_
+#endif
